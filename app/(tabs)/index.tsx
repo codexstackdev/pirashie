@@ -1,98 +1,220 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  ToastAndroid,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import SideBar from "./components/SideBar";
+import ResultList from "./components/ResultList";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const results = [
+  {
+    id: 1,
+    title: "Blinding Lights",
+    artist: "The Weeknd",
+    downloads: "12.4K",
+    image: "https://i.scdn.co/image/ab67616d0000b2730d3c5b9f7e1d0f0d7f4c2d9f",
+  },
+  {
+    id: 2,
+    title: "Starboy",
+    artist: "The Weeknd",
+    downloads: "8.1K",
+    image: "https://i.scdn.co/image/ab67616d0000b2734718e2b124f79258f9c6d7e6",
+  },
+  {
+    id: 3,
+    title: "One Dance",
+    artist: "Drake",
+    downloads: "6.9K",
+    image: "https://i.scdn.co/image/ab67616d0000b273b1c65c5f7c1d8a9d5e4b3e8c",
+  },
+];
+
+type DataProps = {
+  id: string;
+  title: string;
+  duration: string;
+  viewCount: string;
+  thumbMedium: string;
+};
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [data, setData] = useState<DataProps[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState("");
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const handleSearch = async () => {
+    if (query.trim().length <= 0) {
+      ToastAndroid.showWithGravity("Search is empty", ToastAndroid.SHORT, ToastAndroid.TOP);
+      return;
+    }
+    setLoading(true);
+    try {
+      const req = await fetch(
+        `https://jeextract.vercel.app/api/proxy?q=${query}`,
+      );
+      const data = await req.json();
+      if (data) {
+        setData(data.items);
+      } else {
+        setData([]);
+      }
+    } catch (error) {
+      alert(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <SideBar sideBarOpen={sidebarOpen} setSideBarOpen={setSidebarOpen} />
+
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() => setSidebarOpen(true)}
+          >
+            <Ionicons name="menu" size={26} color="#fff" />
+          </TouchableOpacity>
+
+          <View>
+            <Text style={styles.logo}>PiraShie</Text>
+            <Text style={styles.subtitle}>Download music instantly</Text>
+          </View>
+        </View>
+
+        <View style={styles.searchWrapper}>
+          <Ionicons name="search" size={20} color="#777" />
+
+          <TextInput
+            placeholder="Search music..."
+            value={query}
+            onChangeText={setQuery}
+            onSubmitEditing={handleSearch}
+            placeholderTextColor="#777"
+            style={styles.input}
+            editable={!loading}
+          />
+
+          {loading ? (
+            <ActivityIndicator size="large" color="#8B5CF6" />
+          ) : (
+            <TouchableOpacity
+              disabled={loading}
+              onPressIn={handleSearch}
+              style={styles.searchBtn}
+            >
+              <Ionicons name="arrow-forward" size={18} color="#000" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.resultsHeader}>
+          <Text style={styles.resultsTitle}>Total Results: {data.length}</Text>
+        </View>
+
+        {data.map((music) => (
+          <ResultList
+            viewCount={music.viewCount}
+            id={music.id}
+            title={music.title}
+            thumbMedium={music.thumbMedium}
+            duration={music.duration}
+          />
+        ))}
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#0B0B0F",
+    paddingTop: 50,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  overlay: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    zIndex: 5,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+
+  header: {
+    paddingHorizontal: 20,
+    marginBottom: 30,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  menuButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: "#16161D",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
+
+  logo: {
+    color: "#fff",
+    fontSize: 28,
+    fontWeight: "800",
+  },
+
+  subtitle: {
+    color: "#777",
+    marginTop: 2,
+  },
+
+  resultsHeader: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+    marginTop: 10,
+  },
+
+  resultsTitle: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "700",
+  },
+  searchWrapper: {
+    height: 60,
+    backgroundColor: "#15151C",
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  input: {
+    flex: 1,
+    color: "#fff",
+    marginLeft: 10,
+    fontSize: 15,
+  },
+
+  searchBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#8B5CF6",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
