@@ -126,6 +126,7 @@ export default function HomeScreen() {
 
         {data.map((music) => (
           <ResultList
+            key={music.id}
             viewCount={music.viewCount}
             id={music.id}
             title={music.title}

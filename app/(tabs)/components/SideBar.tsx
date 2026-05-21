@@ -1,6 +1,8 @@
+import { database } from "@/hooks/lib";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import React, { useEffect } from "react";
+import { onValue, ref } from "firebase/database";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated, {
   useSharedValue,
@@ -13,9 +15,45 @@ type SidebarProps = {
   setSideBarOpen: (val: boolean) => void;
 };
 
+type songProps = {
+  title: string;
+  thumbMedium: string;
+  downloads: number;
+};
+
 const SideBar = ({ sideBarOpen, setSideBarOpen }: SidebarProps) => {
   const translateX = useSharedValue(-320);
   const overlayOpacity = useSharedValue(0);
+  const [totalDownloads, setTotalDownloads] = useState(0);
+  const [topSongs, setTopSongs] = useState<songProps | null>(null);
+
+  useEffect(() => {
+    const statsRef = ref(database, "stats");
+    const unsubscribeStats = onValue(statsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data && data.totalDownloads) {
+        setTotalDownloads(data.totalDownloads);
+      }
+    });
+    const trackingRef = ref(database, "tracking");
+    const unsubscribeTracking = onValue(trackingRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const formattedArray = Object.keys(data).map((key) => ({
+          firebaseId: key,
+          ...data[key],
+        }));
+        formattedArray.sort((a, b) => b.downloads - a.downloads);
+        setTopSongs(formattedArray[0]);
+      } else {
+        setTopSongs(null);
+      }
+      return () => {
+        unsubscribeStats();
+        unsubscribeTracking();
+      };
+    });
+  }, []);
 
   useEffect(() => {
     if (sideBarOpen) {
@@ -65,27 +103,37 @@ const SideBar = ({ sideBarOpen, setSideBarOpen }: SidebarProps) => {
 
         <View style={styles.statCard}>
           <Ionicons name="download" size={22} color="#8B5CF6" />
-          <Text style={styles.statNumber}>0</Text>
+          <Text style={styles.statNumber}>{totalDownloads}</Text>
           <Text style={styles.statLabel}>Total Downloads</Text>
         </View>
 
-        <View style={styles.topSongCard}>
-          <Text style={styles.topSongTitle}>Top Downloaded</Text>
+        {topSongs && (
+          <View style={styles.topSongCard}>
+            <Text style={styles.topSongTitle}>Top Downloaded</Text>
 
-          <View style={styles.topSongContent}>
-            <Image
-              source={{
-                uri: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTYHMKdYQTG3r9YF1Vu1U49QyWGFBXkRKOeAQ&s",
-              }}
-              style={styles.topSongImage}
-            />
+            <View style={styles.topSongContent}>
+              <Image
+                source={{
+                  uri: topSongs?.thumbMedium,
+                }}
+                style={styles.topSongImage}
+              />
 
-            <View>
-              <Text style={styles.topSongName}>Starboy</Text>
-              <Text style={styles.topSongArtist}>The Weeknd</Text>
+              <View style={styles.topSongInfo}>
+                <Text
+                  style={styles.topSongName}
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                >
+                  {topSongs?.title}
+                </Text>
+                <Text style={styles.topSongArtist}>
+                  Downloads: {topSongs?.downloads}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
+        )}
       </Animated.View>
     </>
   );
@@ -103,7 +151,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.5)",
     zIndex: 5,
   },
-
+  topSongInfo: {
+    flex: 1,
+  },
   sidebar: {
     position: "absolute",
     left: 0,
@@ -177,6 +227,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "700",
+    flexShrink: 1,
   },
 
   topSongArtist: {
